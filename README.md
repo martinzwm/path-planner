@@ -1,16 +1,45 @@
 # CarND-Path-Planning-Project
-Self-Driving Car Engineer Nanodegree Program
-   
-### Simulator.
+# Self-Driving Car Engineer Nanodegree Program
+
+<p align="center">
+  <img src="images/simulator_result.png" width=600><br/>
+  <i>Simulator result - 20 miles w/o incident</i>
+</p>
+
+### Introduction
+The goal of the project is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. The car's localization and sensor fusion data are provided, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 10 m/s^3.
+
+### Implementation
+**Lane Following** : Plan the trajectory of the car using the Frenet coordinate system (s,d) by setting d at the center of the lane constant (if lane change is not needed) and incrementing s based on the desired speed. Then use the helper function `getXY()` to transfer (s,d) to (x,y).
+
+**Smooth Trajectory** : Fit a spline through a few previous points (to ensure continuity) and future points (far apart). Since the points are far apart, the points in between (at each time step) need to be calculated. To simplify the math, global frame is transformed to body frame. The distance can be approximated by the linearized spline and the number of time steps N can be calculated from the distance and the desired velocity. The x coordinate can be found by splitting the total distance in x by N parts; the y coordinate can be conveniently calculated by spline(x). The global frame is then reestablished.
+
+**Collision Avoidance** : For all cars that is in our lane `abs(car.d – self.d) < threshold`, project where it would be in the next time step based on its current s and speed. If `0 < car.next_s – self.s < threshold`, then take actions (either reduce speed or change lane if safe).
+
+**Behaviour Planning** :
+
+Before planning for behavior, we need to know what the other cars around us are doing. There are several special cases that we particularly care about:
+1.	If the other car is in the same lane and it’s too close (say `0 < other_car.s – self.s < 30`), need to do something immediately. -> `too_close = true`
+2.	If the other car is on the left of us and it’s too close (say `-10 < other_car.s – self.s < 35`), we can’t change lane to the left. -> `car_left = true`
+3.	Similar for the case on the right. -> `car_right = true`
+
+When the above cases occur, we can either change lane (preferred) or reduce speed. 
+1.	If we are not on the leftmost lane and `car_left == false`, move one lane to the left.
+2.	If we are not on the rightmost lane and `car_right == false`, move one lane to the right.
+3.	If neither two cases were satisfied, then reduce speed based on the max decceleration we set.
+
+To improve the trajectory planning, we can do two things when `too_close == false`.
+1.	If `speed < max_speed`, add max acceleration to current speed.
+2.	If we are not in the middle lane, and it’s safe to change to the middle lane. Even though it may not be necessary to change lane, we should still do it since it would give us more options to change lanes for future congestions.
+
+
+### Simulator
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
 
 To run the simulator on Mac/Linux, first make the binary file executable with the following command:
 ```shell
 sudo chmod u+x {simulator_file_name}
 ```
-
-### Goals
-In this project your goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. You will be provided the car's localization and sensor fusion data, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 10 m/s^3.
 
 #### The map of the highway is in data/highway_map.txt
 Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
